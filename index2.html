@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DoseMage – Upload & Analyze</title>
+<style>
+  :root{
+    --bg:#f2f4f7;
+    --ink:#0f1320;
+    --muted:#8d93a5;
+    --card:#ffffff;
+    --accent:#3b36ff;
+    --accent-2:#5b49ff;
+    --accent-3:#7f60ff;
+    --radius:18px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    color:var(--ink);
+    background:var(--bg);
+  }
+
+  /* Top bar */
+  .topbar{
+    background: linear-gradient(90deg, #0b0f33, #1a1480 50%, #2a1db0);
+    color:#fff;
+    padding:14px 22px;
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; gap:20px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.25) inset;
+  }
+  .brand{
+    font-weight:800; letter-spacing:.2px; font-size:20px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand .logo{
+    width:26px; height:26px; border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, #8ec5ff, #6a00ff);
+    position:relative;
+  }
+  .tabs{
+    display:flex; gap:6px; margin-left:8px;
+  }
+  .tab{
+    background:#e6e7ee;
+    color:#111;
+    border:none; cursor:pointer;
+    padding:10px 16px;
+    border-radius:14px 14px 0 0;
+    font-weight:600;
+    box-shadow: 0 2px 0 rgba(0,0,0,.15) inset;
+    transition:all .2s ease;
+  }
+  .tab:hover{filter:brightness(.98)}
+  .tab.active{
+    background:#fff;
+    box-shadow:none;
+  }
+
+  /* Page container */
+  .page-wrap{
+    max-width:1200px;
+    margin: 14px auto 40px;
+    padding:0 18px;
+  }
+
+  /* Upload page layout */
+  .upload-grid{
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    gap:22px;
+  }
+  .panel{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow: 0 18px 40px rgba(18, 23, 64, .12);
+    padding:20px;
+  }
+
+  /* Central big drop zone */
+  .drop-card{
+    height:420px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:22px;
+    background:linear-gradient(145deg,#f8f9fb,#eef1f6);
+    box-shadow: 20px 20px 50px rgba(16,19,57,.08), -8px -8px 30px rgba(255,255,255,.8);
+    position:relative;
+  }
+  .drop-inner{
+    width:min(540px,90%);
+    padding:40px 24px;
+    border-radius:24px;
+    background:#ffffffD9;
+    border:1px solid #e6e9f2;
+    box-shadow: 0 20px 40px rgba(0,0,0,.08);
+    text-align:center;
+  }
+  .upload-btn{
+    display:inline-block;
+    background:linear-gradient(135deg, var(--accent), var(--accent-3));
+    color:#fff; font-weight:700;
+    padding:16px 28px;
+    border-radius:18px;
+    border:none; cursor:pointer;
+    font-size:18px;
+    box-shadow: 0 10px 22px rgba(78,64,255,.35);
+  }
+  .or{
+    color:#7a7f90; margin-top:10px; font-weight:600;
+  }
+  .drop-zone{
+    outline:2px dashed #b9bdd2;
+    outline-offset:-6px;
+    border-radius:18px;
+    padding:14px;
+    margin-top:10px;
+    font-weight:700; color:#5f6478;
+  }
+  .is-dragover{ background:#f6f8ff; outline-color:#8b92ff; color:#3b36ff }
+  .hint{ color:var(--muted); font-size:13px; margin-top:6px }
+
+  /* Sidebar panel */
+  .sidebar-title{
+    font-weight:800; letter-spacing:.4px; font-size:14px; color:#1b1f33;
+    margin-bottom:8px;
+  }
+  .sidebar{
+    position:relative;
+    overflow:hidden;
+  }
+  .option-row{
+    display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  }
+  .opt-card{
+    margin-top:12px;
+    padding:16px;
+    border:1px dashed #9aa0b5;
+    border-radius:16px;
+    text-align:center;
+    background:#fff;
+  }
+  .opt-title{ font-weight:800; margin-bottom:6px; display:flex; justify-content:center; gap:6px }
+  .opt-title small{ color:#7d8298; font-weight:600 }
+  .opt-drop{ padding:18px; border-radius:14px; border:2px dashed #c3c7d9; cursor:pointer; }
+  .opt-drop.is-dragover{ background:#f6f8ff; border-color:#8b92ff; color:#3b36ff }
+
+  /* Result chip */
+  .result{
+    margin-top:18px; display:flex; align-items:center; gap:12px;
+    font-weight:700; color:#2a2f45;
+  }
+  .swatch{
+    width:28px; height:28px; border-radius:8px; border:1px solid #d7d9e6;
+  }
+
+  /* Other pages placeholder */
+  .placeholder{
+    min-height:360px; display:grid; place-items:center;
+    font-size:22px; color:#7b8196;
+    border-radius:var(--radius);
+    background:#fff; box-shadow: 0 18px 40px rgba(18,23,64,.08);
+  }
+
+  /* Hidden inputs */
+  input[type="file"]{ display:none }
+
+  /* Modal */
+  .modal{
+    position:fixed; inset:0; background:rgba(7,10,25,.55);
+    display:none; align-items:center; justify-content:center; z-index:100;
+  }
+  .modal.show{ display:flex }
+  .modal-card{
+    width:min(520px,92%); background:#fff; border-radius:18px; padding:22px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.35);
+  }
+  .modal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px }
+  .close-btn{ border:none; background:#f2f3f8; border-radius:10px; padding:6px 10px; cursor:pointer; font-weight:800 }
+  .pill{
+    display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; background:#eef0ff; color:#2f36ff; font-weight:800;
+  }
+
+  @media (max-width: 980px){
+    .upload-grid{ grid-template-columns:1fr }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Top bar with tabs -->
+  <div class="topbar">
+    <div class="brand"><span class="logo"></span><span>DoseMage</span></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="home">Home</button>
+      <button class="tab" data-tab="upload">Upload</button>
+      <button class="tab" data-tab="support">User Support</button>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <!-- HOME (placeholder) -->
+    <section id="home" class="placeholder panel">Home (placeholder)</section>
+
+    <!-- UPLOAD -->
+    <section id="upload" class="panel" style="display:none;">
+      <div class="upload-grid">
+        <!-- Left: big card -->
+        <div class="drop-card">
+          <div class="drop-inner" id="mainDrop">
+            <button class="upload-btn" id="btnMainPick">Upload Image</button>
+            <div class="or">or</div>
+            <div class="drop-zone" id="mainDropZone">drop a file</div>
+            <div class="hint">Main picture will be saved as <b>MainPicture</b>. We’ll compute the average RGB (excluding near-white pixels).</div>
+            <div class="result" id="mainResult" style="display:none;">
+              <div class="swatch" id="swatch"></div>
+              <span id="rgbText"></span>
+            </div>
+            <input type="file" id="mainFile" accept="image/*">
+            <canvas id="hiddenCanvas" style="display:none"></canvas>
+          </div>
+        </div>
+
+        <!-- Right: options sidebar -->
+        <aside class="sidebar panel">
+          <div class="sidebar-title">RECENT FILES &amp; PICTURES</div>
+
+          <div class="option-row">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+              <input type="checkbox" id="aiNorm">
+              <span><b>AI Light Normalization</b> <span class="hint">(placeholder)</span></span>
+            </label>
+          </div>
+
+          <div class="opt-card">
+            <div class="opt-title">Upload Standard &amp; Blank <small>(1–2 files)</small></div>
+            <div class="opt-drop" id="stdBlankZone">Drop a file</div>
+            <input type="file" id="stdBlankFile" multiple accept=".png,.jpg,.jpeg,.csv,.txt,image/*">
+            <div class="hint" id="sbInfo">Waiting for files…</div>
+          </div>
+
+          <div class="opt-card">
+            <div class="opt-title">Upload Calibration Curve</div>
+            <div class="opt-drop" id="calibZone">Drop a file</div>
+            <input type="file" id="calibFile" accept=".png,.jpg,.jpeg,.csv,.txt,image/*">
+            <div class="hint" id="calibInfo">Waiting for file…</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- USER SUPPORT (placeholder) -->
+    <section id="support" class="placeholder panel" style="display:none;">User Support (placeholder)</section>
+  </div>
+
+  <!-- Modal for concentration placeholder -->
+  <div class="modal" id="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0">Analysis Summary</h3>
+        <button class="close-btn" id="btnClose">✕</button>
+      </div>
+      <p><span class="pill">MainPicture</span> uploaded and processed.</p>
+      <p id="modalRGB" style="font-weight:700"></p>
+      <div style="display:flex;align-items:center;gap:10px;margin:10px 0 16px">
+        <div id="modalSwatch" class="swatch"></div>
+        <span class="hint">(Average color preview)</span>
+      </div>
+      <hr style="border:none;border-top:1px solid #eef0f7;margin:14px 0">
+      <p style="margin:.2rem 0 .6rem;"><b>Concentration</b> (placeholder):</p>
+      <div style="padding:12px;border:1px dashed #c8cbe0;border-radius:12px;color:#7a7f90">To be computed from MainPicture + Standard + Blank + Calibration.</div>
+    </div>
+  </div>
+
+<script>
+/* ---------- Simple SPA (tabs) ---------- */
+const tabs = document.querySelectorAll('.tab');
+const pages = { home: document.getElementById('home'),
+                upload: document.getElementById('upload'),
+                support: document.getElementById('support') };
+
+tabs.forEach(t => {
+  t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    Object.values(pages).forEach(p => p.style.display = 'none');
+    pages[t.dataset.tab].style.display = (t.dataset.tab === 'upload') ? 'block' : 'grid';
+  });
+});
+// Show Upload by default
+document.querySelector('.tab[data-tab="upload"]').click();
+
+/* ---------- App state ---------- */
+const State = {
+  MainPicture: null,        // File object
+  Standard: null,           // File object (if two files dropped, first = Standard)
+  Blank: null,              // File object (if two files dropped, second = Blank)
+  Calibration: null,        // File object
+  avgRGB: null              // {r,g,b}
+};
+
+/* ---------- Helpers ---------- */
+function preventDefaults(e){
+  e.preventDefault(); e.stopPropagation();
+}
+function wireDropArea(area, onFiles){
+  ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+    area.addEventListener(evt, preventDefaults, false);
+  });
+  ['dragenter','dragover'].forEach(evt=>{
+    area.addEventListener(evt, ()=>area.classList.add('is-dragover'));
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    area.addEventListener(evt, ()=>area.classList.remove('is-dragover'));
+  });
+  area.addEventListener('drop', e => {
+    const files = [...e.dataTransfer.files];
+    if(files.length) onFiles(files);
+  });
+  area.addEventListener('click', ()=> {
+    const siblingInput = area.nextElementSibling; // hidden input follows each zone
+    if(siblingInput && siblingInput.type === 'file') siblingInput.click();
+  });
+}
+
+/* ---------- Average RGB (ignore near-white) ---------- */
+async function averageRGBFromImage(file, whiteThreshold=240){
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.src = url;
+  await img.decode().catch(()=>{}); // wait to load
+
+  const canvas = document.getElementById('hiddenCanvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  ctx.drawImage(img, 0, 0);
+
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  let rs=0, gs=0, bs=0, n=0;
+
+  for(let i=0;i<data.length;i+=4){
+    const r=data[i], g=data[i+1], b=data[i+2], a=data[i+3];
+    if(a===0) continue; // skip transparent
+    if(r>whiteThreshold && g>whiteThreshold && b>whiteThreshold) continue; // skip near-white
+    rs+=r; gs+=g; bs+=b; n++;
+  }
+  URL.revokeObjectURL(url);
+  if(n===0) return {r:255,g:255,b:255, count:0}; // fallback
+  return { r: Math.round(rs/n), g: Math.round(gs/n), b: Math.round(bs/n), count:n };
+}
+
+/* ---------- Main picture upload ---------- */
+const mainPickBtn = document.getElementById('btnMainPick');
+const mainFileInput = document.getElementById('mainFile');
+const mainDropZone = document.getElementById('mainDropZone');
+const mainResult = document.getElementById('mainResult');
+const rgbText = document.getElementById('rgbText');
+const swatch = document.getElementById('swatch');
+
+function handleMainFiles(files){
+  const f = files[0];
+  if(!f) return;
+  State.MainPicture = f;
+  averageRGBFromImage(f).then(rgb=>{
+    State.avgRGB = rgb;
+    const txt = `Average RGB (excluding near white): (${rgb.r}, ${rgb.g}, ${rgb.b})`;
+    rgbText.textContent = txt;
+    swatch.style.background = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+    mainResult.style.display = 'flex';
+    // pop modal
+    showModal(rgb);
+  }).catch(()=>{
+    rgbText.textContent = 'Error analyzing image.';
+    mainResult.style.display = 'block';
+  });
+}
+mainPickBtn.addEventListener('click', ()=> mainFileInput.click());
+mainFileInput.addEventListener('change', e => handleMainFiles([...e.target.files]));
+wireDropArea(mainDropZone, handleMainFiles);
+
+/* ---------- Standard & Blank ---------- */
+const sbZone = document.getElementById('stdBlankZone');
+const sbInput = document.getElementById('stdBlankFile');
+const sbInfo  = document.getElementById('sbInfo');
+
+function handleSB(files){
+  if(files.length>=1){ State.Standard = files[0]; }
+  if(files.length>=2){ State.Blank = files[1]; }
+  const sName = State.Standard ? `Standard: ${State.Standard.name}` : 'Standard: (none)';
+  const bName = State.Blank ? `, Blank: ${State.Blank.name}` : ', Blank: (none)';
+  sbInfo.textContent = sName + bName;
+}
+wireDropArea(sbZone, handleSB);
+sbInput.addEventListener('change', e=>handleSB([...e.target.files]));
+
+/* ---------- Calibration ---------- */
+const calibZone = document.getElementById('calibZone');
+const calibInput = document.getElementById('calibFile');
+const calibInfo = document.getElementById('calibInfo');
+
+function handleCalib(files){
+  const f = files[0];
+  if(!f) return;
+  State.Calibration = f;
+  calibInfo.textContent = `Calibration: ${f.name}`;
+}
+wireDropArea(calibZone, handleCalib);
+calibInput.addEventListener('change', e=>handleCalib([...e.target.files]));
+
+/* ---------- Modal ---------- */
+const modal = document.getElementById('modal');
+const btnClose = document.getElementById('btnClose');
+const modalRGB = document.getElementById('modalRGB');
+const modalSwatch = document.getElementById('modalSwatch');
+
+/* ---------- Concentration Calculation (Default Calibration) ---------- */
+function calcConcentrationDefault(rgb){
+  // Invert y = m x + c to x = (y - c)/m for each channel
+  const xR = (rgb.r - 50.083) / 1.4719;
+  const xG = (rgb.g - 83.574) / -1.8327;
+  const xB = (rgb.b - 145.65) / -9.2452;
+  const avg = (xR + xG + xB)/3;
+  return { xR, xG, xB, avg };
+}
+
+function showModal(rgb){
+  // Determine calibration status
+  const usingDefault = !State.Calibration;
+  const calibText = usingDefault
+    ? "Using default calibration (linear model)"
+    : "Using user-provided calibration (placeholder parsing TBD)";
+
+  modalRGB.textContent = `Average RGB: (${rgb.r}, ${rgb.g}, ${rgb.b}) • Pixels counted: ${rgb.count}`;
+  modalSwatch.style.background = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+
+  // Compute concentration if default calibration
+  let concentrationHTML;
+  if(usingDefault){
+    const {xR, xG, xB, avg} = calcConcentrationDefault(rgb);
+    concentrationHTML = `
+      <p><b>Calculated Concentration:</b> ${avg.toFixed(2)}</p>
+      <div style="font-size:14px;color:#666;margin-top:6px">
+        (R:${xR.toFixed(2)}, G:${xG.toFixed(2)}, B:${xB.toFixed(2)})
+      </div>
+    `;
+  } else {
+    concentrationHTML = `<p><i>Placeholder:</i> Concentration will be computed from uploaded calibration curve.</p>`;
+  }
+
+  // Build modal body dynamically
+  modal.querySelector('.modal-card').innerHTML = `
+    <div class="modal-head">
+      <h3 style="margin:0">Analysis Summary</h3>
+      <button class="close-btn" id="btnClose">✕</button>
+    </div>
+    <p><span class="pill">MainPicture</span> uploaded and processed.</p>
+    <p id="modalRGB" style="font-weight:700">${modalRGB.textContent}</p>
+    <div style="display:flex;align-items:center;gap:10px;margin:10px 0 16px">
+      <div id="modalSwatch" class="swatch" style="background:rgb(${rgb.r},${rgb.g},${rgb.b})"></div>
+      <span class="hint">(Average color preview)</span>
+    </div>
+    <hr style="border:none;border-top:1px solid #eef0f7;margin:14px 0">
+    <p style="margin:4px 0"><b>Calibration Status:</b> ${calibText}</p>
+    ${concentrationHTML}
+  `;
+
+  // Reattach close button handler (since modal content was rebuilt)
+  document.getElementById('btnClose').addEventListener('click', ()=> modal.classList.remove('show'));
+  modal.classList.add('show');
+}
+</script>
+</body>
+</html>
